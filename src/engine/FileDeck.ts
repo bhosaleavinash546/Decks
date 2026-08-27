@@ -46,6 +46,7 @@ export class FileDeck implements IAudioGraphDeck {
   #rate = 1
   #playing = false
   #xruns = 0
+  #framesLost = 0
   #lastDriftSamples = 0
   #title = ''
 
@@ -82,6 +83,11 @@ export class FileDeck implements IAudioGraphDeck {
   }
   get xruns(): number {
     return this.#xruns
+  }
+  /** Render quanta the audio thread actually skipped. Zero means the xrun count
+   *  is clock discontinuity rather than lost audio. */
+  get framesLost(): number {
+    return this.#framesLost
   }
   /** How far the derived playhead was off at the last truth report, in samples. */
   get driftSamples(): number {
@@ -188,6 +194,7 @@ export class FileDeck implements IAudioGraphDeck {
   #onWorkletMessage(m: any): void {
     if (m?.type !== 'truth') return
     this.#xruns = m.xruns
+    this.#framesLost = m.framesLost ?? 0
     if (!m.playing || !this.#playing) return
     const derived = this.#timeline.positionAt(m.contextTime)
     const drift = derived - m.playhead

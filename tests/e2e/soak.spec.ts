@@ -33,13 +33,21 @@ test('ten minutes of continuous playback with zero xruns', async ({ page }) => {
     }
   }
 
-  const { xruns, drift } = await page.evaluate(() => ({
+  const { xruns, framesLost, drift } = await page.evaluate(() => ({
     xruns: (window as any).__decks.xruns(),
+    framesLost: (window as any).__decks.framesLost(),
     drift: Math.abs((window as any).__decks.driftSamples()),
   }))
 
-  console.log(`soak — ${MINUTES} min, xruns ${xruns}, final drift ${drift.toFixed(2)} samples, stalls ${stalls}`)
+  console.log(
+    `soak — ${MINUTES} min, xruns ${xruns}, frames lost ${framesLost}, ` +
+      `final drift ${drift.toFixed(2)} samples, stalls ${stalls}`,
+  )
   expect(stalls).toBe(0)
   expect(drift).toBeLessThan(32)
+  // Frames actually lost is the gate that matters: it is what makes the playhead
+  // wrong and what a listener would hear. The xrun count is kept separately
+  // because a clock discontinuity that loses nothing is not a dropout.
+  expect(framesLost).toBe(0)
   expect(xruns).toBe(0)
 })

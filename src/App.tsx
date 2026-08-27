@@ -70,6 +70,7 @@ function DecksApp() {
       ctx: () => ctx,
       positionSec: () => deckA?.getPositionSec() ?? 0,
       xruns: () => deckA?.xruns ?? 0,
+      framesLost: () => deckA?.framesLost ?? 0,
       driftSamples: () => deckA?.driftSamples ?? 0,
       latencyMs: () => (ctx ? totalLatencyMs(ctx) : 0),
       baseLatencyMs: () => (ctx ? ctx.baseLatency * 1000 : 0),

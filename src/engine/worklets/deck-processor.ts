@@ -45,6 +45,7 @@ class DeckProcessor extends AudioWorkletProcessor {
   #seek: { atFrame: number; position: number } | null = null
   #nextTruthFrame = 0
   #xruns = 0
+  #framesLost = 0
   #expectedFrame = -1
 
   // One reused object: the only thing process() hands to postMessage.
@@ -54,6 +55,7 @@ class DeckProcessor extends AudioWorkletProcessor {
     contextTime: 0,
     frame: 0,
     xruns: 0,
+    framesLost: 0,
     rate: 1,
     playing: false,
   }
@@ -107,7 +109,13 @@ class DeckProcessor extends AudioWorkletProcessor {
     const n = out[0]!.length
 
     // A gap in currentFrame means the audio thread missed a render quantum.
-    if (this.#expectedFrame >= 0 && currentFrame !== this.#expectedFrame) this.#xruns++
+    if (this.#expectedFrame >= 0 && currentFrame !== this.#expectedFrame) {
+      this.#xruns++
+      // The count alone cannot distinguish a genuinely dropped quantum from a
+      // benign clock discontinuity. The GAP can: frames actually lost is what
+      // makes the playhead wrong.
+      this.#framesLost += currentFrame - this.#expectedFrame
+    }
     this.#expectedFrame = currentFrame + n
 
     if (currentFrame >= this.#nextTruthFrame) {
@@ -120,6 +128,7 @@ class DeckProcessor extends AudioWorkletProcessor {
       t.contextTime = currentTime
       t.frame = currentFrame
       t.xruns = this.#xruns
+      t.framesLost = this.#framesLost
       t.rate = this.#follower.rate
       t.playing = this.#playing
       this.port.postMessage(t)
