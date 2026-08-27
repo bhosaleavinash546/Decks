@@ -1,0 +1,92 @@
+/* The whole design system. Cold metal, warm light — the console, not the club. */
+
+:root {
+  /* Palette (§14.3) */
+  --void: #0b0d10;      /* space behind the panels — cool, not black */
+  --panel: #191d23;     /* anodised graphite faceplate */
+  --panel-up: #22272f;  /* raised control surface */
+  --legend: #8d949c;    /* screen-printed label grey */
+  --lamp: #ffb23f;      /* incandescent meter lamp — the only accent */
+  --hot: #ff4438;       /* signal red: clip, record armed, destructive only */
+
+  --ink: #e4e7ea;
+  --ink-dim: #aab1b8;
+  --hairline: #2c323a;
+
+  /* Waveform bands sit outside the UI palette so they never compete. */
+  --band-low: #d97a2b;
+  --band-mid: #6fa88c;
+  --band-high: #bfd9e8;
+
+  /* Deck identity (§14.3) — tokens, because a dark room may want more. */
+  --deck-a: #c77b4a;    /* copper */
+  --deck-b: #5b87a8;    /* steel blue */
+
+  /* The one permitted gradient: a 1px machined bevel on raised surfaces. */
+  --bevel: linear-gradient(to bottom, rgb(255 255 255 / 6%), transparent 1px);
+
+  /* Type (§14.4) */
+  --face-ui: 'Archivo', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --face-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --size-10: 10px; --size-11: 11px; --size-13: 13px;
+  --size-15: 15px; --size-20: 20px; --size-32: 32px;
+  --size-56: 56px; /* reserved for BPM */
+
+  --space-1: 8px; --space-2: 16px; --space-3: 24px; --space-4: 32px;
+
+  /* Motion (§16). Never ease-in or ease-in-out on feedback: anything that ramps
+     up reads as lag. Only transform and opacity are ever animated. */
+  --t-none: 0ms;
+  --t-tap: 70ms;   --e-tap: cubic-bezier(0.2, 0, 0, 1);
+  --t-ui: 180ms;   --e-ui: cubic-bezier(0.32, 0.72, 0, 1);
+  --t-slow: 320ms; --e-slow: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* The beat clock. One clock, written by the single rAF loop from the audio
+     master clock. Anything that pulses reads this — nothing runs its own timer.
+     Phase 3 drives it from the beatgrid; Phase 1 declares it and leaves it at 0. */
+  --beat-phase: 0;
+
+  --radius: 3px; /* nothing over 6px on any control (§14.6) */
+}
+
+/* Class 3 and 4 motion only. Never the waveform, meters or strobe ring —
+   those are the instrument (§18). */
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-ui: 0ms; --t-slow: 0ms; }
+}
+
+/* Panel legends are silkscreen: uppercase, condensed, tracked out. */
+.legend {
+  font-family: var(--face-ui);
+  font-variation-settings: 'wdth' 75, 'wght' 600;
+  font-size: var(--size-10);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--legend);
+}
+
+/* Every number in the app. Proportional figures make a BPM readout jitter. */
+.numeric {
+  font-family: var(--face-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.panel {
+  background: var(--panel);
+  background-image: var(--bevel);
+  border-radius: var(--radius);
+}
+
+.raised {
+  background: var(--panel-up);
+  background-image: var(--bevel);
+  border-radius: var(--radius);
+}
+
+/* Never outline: none (§16). */
+:focus-visible {
+  outline: 2px solid var(--lamp);
+  outline-offset: 2px;
+}

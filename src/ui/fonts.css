@@ -1,0 +1,19 @@
+/* Self-hosted, subset, no CDN — this must work on flaky party wifi (§14.4).
+   Refresh with `npm run fonts`. */
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/archivo-var.woff2') format('woff2-variations');
+  font-weight: 400 700;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
+  font-weight: 500;
+  /* block, not swap: a BPM readout reflowing mid-set is worse than a beat of
+     invisible text (§14.4). */
+  font-display: block;
+}
