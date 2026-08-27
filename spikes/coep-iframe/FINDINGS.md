@@ -58,3 +58,28 @@ This proves the *browser policy* half. It does not prove YouTube's own behaviour
 youtube.com is blocked by this container's network policy. Re-run `./run.sh` on the MacBook
 against a real embed URL before Phase 6 starts, to confirm the player tolerates a cookie-less
 context and to see what ad behaviour looks like signed out.
+
+## The three options, and the pick
+
+**1. `<iframe credentialless>` — pick this.** One attribute, proven in row 4 above.
+`vite.config.ts` keeps `COEP: credentialless`, and nothing else in the architecture moves.
+
+**2. YouTube in a separate, non-isolated window.** Serve `/youtube.html` with no COOP/COEP,
+open it with `window.open`, drive it over `postMessage`. The main app stays isolated. Costs a
+second window on screen, a user gesture to open it, and it dies if anyone closes it. This is
+the fallback if option 1 turns out to break against real YouTube.
+
+**3. Invert the embedding** — a non-isolated shell hosting YouTube, with the audio engine in an
+isolated child frame. It would work, but `SharedArrayBuffer` cannot cross into the
+non-isolated parent, so the whole UI/engine seam moves across a frame boundary. Days of
+complexity to avoid one attribute. No.
+
+## Effect on the plan
+
+- `vite.config.ts` (Phase 1) keeps `COOP: same-origin` + `COEP: credentialless`. Unchanged.
+- `YouTubeDeck.ts` (Phase 6) must set `frame.credentialless = true` **before** setting `src`.
+  Without it the frame fails silently.
+- Phase 1 gains a regression test asserting `crossOriginIsolated === true` and that a
+  `SharedArrayBuffer` constructs, so a later header change cannot break isolation unnoticed.
+- Phase 6 gains a test that the embed handshakes, so a regression here fails loudly rather
+  than looking like a broken video.
