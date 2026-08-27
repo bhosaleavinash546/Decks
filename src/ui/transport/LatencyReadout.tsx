@@ -8,8 +8,12 @@ import { useUiStore } from '../../store/uiStore.js'
  */
 export function LatencyReadout() {
   const latencyMs = useUiStore((s) => s.latencyMs)
+  const outputLatencyMs = useUiStore((s) => s.outputLatencyMs)
   const maxChannelCount = useUiStore((s) => s.maxChannelCount)
-  const over = latencyMs > 25
+  // §13 wants baseLatency + outputLatency displayed; the Phase 1 gate in §20 is
+  // on outputLatency ALONE. Showing the sum but grading it against the
+  // outputLatency budget failed a machine that was actually inside it.
+  const over = outputLatencyMs > 25
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -19,8 +23,19 @@ export function LatencyReadout() {
           className="numeric"
           data-testid="latency-readout"
           style={{ fontSize: 13, color: over ? 'var(--lamp)' : 'var(--ink)' }}
+          title={`base ${(latencyMs - outputLatencyMs).toFixed(2)} ms + output ${outputLatencyMs.toFixed(2)} ms — the gate is on output alone, under 25 ms`}
         >
           {latencyMs.toFixed(1)} ms{over ? ' !' : ''}
+        </span>
+      </span>
+      <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+        <span className="legend">Out latency</span>
+        <span
+          className="numeric"
+          data-testid="output-latency-readout"
+          style={{ fontSize: 13, color: over ? 'var(--lamp)' : 'var(--ink)' }}
+        >
+          {outputLatencyMs.toFixed(1)} ms
         </span>
       </span>
       <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>

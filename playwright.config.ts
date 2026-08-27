@@ -9,7 +9,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://127.0.0.1:5174',
     launchOptions: {
       // Playback must start without a click in the harness.
       args: ['--autoplay-policy=no-user-gesture-required'],
@@ -18,9 +18,12 @@ export default defineConfig({
       ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
     },
   },
+  // Its own port, so a dev server you left running on 5173 is never in the way.
+  // vite.config sets strictPort, so a collision would fail hard rather than
+  // quietly moving and leaving the tests pointed at nothing.
   webServer: {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:5173',
+    command: 'npm run dev -- --port 5174',
+    url: 'http://127.0.0.1:5174',
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
   },

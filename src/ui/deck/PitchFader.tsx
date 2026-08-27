@@ -1,4 +1,5 @@
 import { Fader } from '../controls/Fader.js'
+import { percent } from '../format.js'
 
 /** ±8% is what actually gets used; the fader travels 220px minimum (§15). */
 export function PitchFader({ value, onChange }: { value: number; onChange: (rate: number) => void }) {
@@ -11,7 +12,7 @@ export function PitchFader({ value, onChange }: { value: number; onChange: (rate
       max={8}
       travelPx={220}
       onChange={onChange}
-      format={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`}
+      format={percent}
     />
   )
 }

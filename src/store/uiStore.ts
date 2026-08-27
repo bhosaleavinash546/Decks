@@ -15,11 +15,12 @@ interface UiState {
   banners: DeckError[]
   decks: Record<DeckId, DeckSummary>
   latencyMs: number
+  outputLatencyMs: number
   maxChannelCount: number
   pushBanner: (e: DeckError) => void
   dismissBanner: (id: number) => void
   setDeck: (id: DeckId, summary: Partial<DeckSummary>) => void
-  setEnvironment: (latencyMs: number, maxChannelCount: number) => void
+  setEnvironment: (latencyMs: number, outputLatencyMs: number, maxChannelCount: number) => void
 }
 
 const emptyDeck: DeckSummary = { title: '', state: 'empty', durationSec: 0 }
@@ -28,6 +29,7 @@ export const useUiStore = create<UiState>((set) => ({
   banners: [],
   decks: { A: emptyDeck, B: emptyDeck },
   latencyMs: 0,
+  outputLatencyMs: 0,
   maxChannelCount: 0,
   pushBanner: (e) => set((s) => ({ banners: [...s.banners.slice(-4), e] })),
   dismissBanner: (id) => set((s) => ({ banners: s.banners.filter((b) => b.id !== id) })),
@@ -43,5 +45,6 @@ export const useUiStore = create<UiState>((set) => ({
       }
       return { decks: { ...s.decks, [id]: next } }
     }),
-  setEnvironment: (latencyMs, maxChannelCount) => set({ latencyMs, maxChannelCount }),
+  setEnvironment: (latencyMs, outputLatencyMs, maxChannelCount) =>
+    set({ latencyMs, outputLatencyMs, maxChannelCount }),
 }))

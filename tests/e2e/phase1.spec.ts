@@ -69,6 +69,26 @@ test.describe('Phase 1 — one deck, sound out', () => {
     expect(advanced).toBeLessThan(2.5)
   })
 
+  test('meets the Phase 1 output latency gate', async ({ page }) => {
+    // §20: the gate is `outputLatency` under 25 ms — the OUTPUT figure alone,
+    // not baseLatency + outputLatency, which §13 asks to be displayed.
+    // This is a property of the machine and its audio device, not of the code,
+    // so it lives in its own test: a hardware shortfall should not hide a
+    // functional failure.
+    //
+    // Audio must actually be flowing first. `ctx.outputLatency` reads 0 until
+    // the context has rendered, and reading it too early passes this test on a
+    // machine that fails the gate.
+    await page.setInputFiles('[data-testid="deck-A-file"]', SINE_60S)
+    await expect(page.getByTestId('deck-A-play')).toBeEnabled()
+    await page.getByTestId('deck-A-play').click()
+    await page.waitForFunction(() => window.__decks.positionSec() > 0.5)
+
+    const output = await page.evaluate(() => window.__decks.outputLatencyMs())
+    expect(output, 'outputLatency should be reported once audio is running').toBeGreaterThan(0)
+    expect(output, 'outputLatency is the Phase 1 acceptance gate').toBeLessThan(25)
+  })
+
   test('reports latency, and the derived playhead does not drift', async ({ page }) => {
     await page.setInputFiles('[data-testid="deck-A-file"]', SINE_60S)
     await expect(page.getByTestId('deck-A-play')).toBeEnabled()
@@ -84,8 +104,9 @@ test.describe('Phase 1 — one deck, sound out', () => {
     expect(latency.total).toBeGreaterThan(0)
     await expect(page.getByTestId('latency-readout')).toContainText('ms')
     console.log(
-      `latency — base ${latency.base.toFixed(2)} ms, output ${latency.output.toFixed(2)} ms, ` +
-        `total ${latency.total.toFixed(2)} ms`,
+      `latency — base ${latency.base.toFixed(2)} ms + output ${latency.output.toFixed(2)} ms ` +
+        `= ${latency.total.toFixed(2)} ms total  (gate: output < 25 ms — ` +
+        `${latency.output < 25 ? 'PASS' : 'FAIL'})`,
     )
 
     // HARD RULE 8: drift against the worklet's truth report stays sub-sample.

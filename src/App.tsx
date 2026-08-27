@@ -41,7 +41,8 @@ function DecksApp() {
   // reads 0 until then.
   useEffect(() => {
     if (!ctx) return
-    const publish = () => setEnvironment(totalLatencyMs(ctx), ctx.destination.maxChannelCount)
+    const publish = () =>
+      setEnvironment(totalLatencyMs(ctx), (ctx.outputLatency || 0) * 1000, ctx.destination.maxChannelCount)
     publish()
     const id = window.setInterval(publish, 1000)
     return () => window.clearInterval(id)

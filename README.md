@@ -24,11 +24,14 @@ charger in before the party.
 ## Testing it
 
 ```bash
-npm test          # 40 unit tests, ~1s
+npm test          # 46 unit tests, ~1s
 npm run test:e2e  # acceptance tests in a real browser, ~20s
 npm run soak      # the ten-minute soak, on its own
 npm run lint      # eslint + tsc --noEmit
 ```
+
+The acceptance tests run their own dev server on port **5174**, so you can leave
+`npm run dev` running on 5173 in another tab.
 
 Audio fixtures are generated on demand by `scripts/make-fixtures.mjs` — a minute
 of 48 kHz stereo is 11 MB, so they are not committed.

@@ -4,17 +4,11 @@ import type { DeckId } from '../../engine/IDeckSource.js'
 import { useUiStore } from '../../store/uiStore.js'
 import { Button } from '../controls/Button.js'
 import { Readout } from '../controls/Readout.js'
+import { clock } from '../format.js'
 import { countRender } from '../renderCount.js'
 import { PitchFader } from './PitchFader.js'
 
 const DECK_TINT: Record<DeckId, string> = { A: 'var(--deck-a)', B: 'var(--deck-b)' }
-
-function clock(sec: number): string {
-  const s = Math.max(0, sec)
-  const m = Math.floor(s / 60)
-  const r = s - m * 60
-  return `${m}:${r.toFixed(1).padStart(4, '0')}`
-}
 
 export const DeckPanel = memo(function DeckPanel({ id, deck }: { id: DeckId; deck: FileDeck | null }) {
   countRender('DeckPanel')
@@ -28,7 +22,12 @@ export const DeckPanel = memo(function DeckPanel({ id, deck }: { id: DeckId; dec
     () => clock((deck?.durationSec ?? 0) - (deck?.getPositionSec() ?? 0)),
     [deck],
   )
-  const readXruns = useCallback(() => String(deck?.xruns ?? 0), [deck])
+  // The event count alone cannot tell a dropped quantum from a benign clock
+  // discontinuity. Frames lost can, so show both.
+  const readXruns = useCallback(
+    () => `${deck?.xruns ?? 0} · ${deck?.framesLost ?? 0} lost`,
+    [deck],
+  )
 
   const onPitch = useCallback(
     (percent: number) => {
@@ -116,7 +115,12 @@ export const DeckPanel = memo(function DeckPanel({ id, deck }: { id: DeckId; dec
           </div>
 
           <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-            <Readout read={readXruns} label="Xruns" size={13} title="Dropped render quanta since load" />
+            <Readout
+              read={readXruns}
+              label="Xruns · frames lost"
+              size={13}
+              title="Clock discontinuities, and how many render frames were actually lost"
+            />
           </div>
 
           <label className="legend" style={{ display: 'grid', gap: 4 }}>
