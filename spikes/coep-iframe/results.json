@@ -1,0 +1,78 @@
+{
+  "results": [
+    {
+      "case": "control-no-isolation",
+      "crossOriginIsolated": false,
+      "sab": "undefined",
+      "iframeLoadEvent": true,
+      "handshake": true,
+      "handshakeDetail": {
+        "spike": "ready",
+        "origin": "http://127.0.0.1:8802",
+        "cookiesVisible": false
+      },
+      "commandAck": true,
+      "credentiallessAttrSupported": true,
+      "errors": []
+    },
+    {
+      "case": "coep-require-corp",
+      "crossOriginIsolated": true,
+      "sab": "constructed",
+      "iframeLoadEvent": true,
+      "handshake": false,
+      "handshakeDetail": null,
+      "commandAck": false,
+      "credentiallessAttrSupported": true,
+      "errors": []
+    },
+    {
+      "case": "coep-credentialless",
+      "crossOriginIsolated": true,
+      "sab": "constructed",
+      "iframeLoadEvent": true,
+      "handshake": false,
+      "handshakeDetail": null,
+      "commandAck": false,
+      "credentiallessAttrSupported": true,
+      "errors": []
+    },
+    {
+      "case": "coep-credentialless-attr",
+      "crossOriginIsolated": true,
+      "sab": "constructed",
+      "iframeLoadEvent": true,
+      "handshake": true,
+      "handshakeDetail": {
+        "spike": "ready",
+        "origin": "http://127.0.0.1:8802",
+        "cookiesVisible": false
+      },
+      "commandAck": true,
+      "credentiallessAttrSupported": true,
+      "errors": []
+    },
+    {
+      "case": "document-isolation-policy",
+      "crossOriginIsolated": false,
+      "sab": "undefined",
+      "iframeLoadEvent": true,
+      "handshake": true,
+      "handshakeDetail": {
+        "spike": "ready",
+        "origin": "http://127.0.0.1:8802",
+        "cookiesVisible": false
+      },
+      "commandAck": true,
+      "credentiallessAttrSupported": true,
+      "errors": []
+    }
+  ],
+  "thirdPartyHits": [
+    "/player.html?case=control-no-isolation",
+    "/player.html?case=coep-require-corp",
+    "/player.html?case=coep-credentialless",
+    "/player.html?case=coep-credentialless-attr",
+    "/player.html?case=document-isolation-policy"
+  ]
+}
