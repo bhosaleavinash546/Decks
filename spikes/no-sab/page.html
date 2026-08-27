@@ -1,0 +1,183 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DECKS — option 4 spike</title>
+<body style="background:#0B0D10;color:#E4E7EA;font:13px monospace;padding:16px">
+<pre id="log">starting…</pre>
+<script>
+const DURATION_SEC = Number(new URLSearchParams(location.search).get('sec') ?? 600)
+const RATE_EVERY_SEC = 20
+const RATE_RAMP_SEC = 0.010
+const RATES = [1.0, 1.08, 0.92, 1.04, 0.96]
+const log = (m) => { document.getElementById('log').textContent = m }
+
+;(async () => {
+  const ctx = new AudioContext({ latencyHint: 'interactive', sampleRate: 48000 })
+  const sr = ctx.sampleRate
+  await ctx.audioWorklet.addModule('probe-processor.js')
+
+  const startTime = ctx.currentTime + 1.0
+  const startFrame = Math.round(startTime * sr)
+  const node = new AudioWorkletNode(ctx, 'probe', {
+    outputChannelCount: [2],
+    processorOptions: { startFrame, impulseEverySec: 5 },
+  })
+
+  // A 2-second 1 kHz tone, TRANSFERRED rather than shared. The main thread's
+  // view is neutered by the handoff — peaks for the waveform would already have
+  // been computed before this point.
+  const pcm = new Float32Array(sr * 2)
+  for (let i = 0; i < pcm.length; i++) pcm[i] = Math.sin((2 * Math.PI * 1000 * i) / sr) * 0.5
+  node.port.postMessage({ type: 'pcm', pcm: pcm.buffer }, [pcm.buffer])
+
+  const analyser = ctx.createAnalyser()
+  analyser.fftSize = 2048
+  const analyserBuf = new Float32Array(analyser.fftSize)
+  const silent = ctx.createGain()
+  silent.gain.value = 0 // no speakers here; keep the graph pulling anyway
+  node.connect(analyser).connect(silent).connect(ctx.destination)
+
+  // --- the derived playhead -------------------------------------------------
+  // Position is the integral of rate over a list of segments, each starting at a
+  // known context time. No messaging involved.
+  const segments = [{ t: startFrame / sr, from: 1, to: 1, rampSec: 0 }]
+
+  function derive(t, model) {
+    let pos = 0
+    for (let i = 0; i < segments.length; i++) {
+      const s = segments[i]
+      const next = segments[i + 1]
+      const end = Math.min(t, next ? next.t : Infinity)
+      if (end <= s.t) break
+      const span = end - s.t
+      if (model === 'naive') {
+        // Treats each rate change as instantaneous: ignores the ramp integral.
+        pos += span * s.to * sr
+      } else {
+        const ramp = Math.min(span, s.rampSec)
+        pos += ramp * ((s.from + s.to) / 2) * sr
+        pos += (span - ramp) * s.to * sr
+      }
+    }
+    return pos
+  }
+
+  function clockNow(strategy) {
+    if (strategy === 'outputTimestamp') {
+      const ts = ctx.getOutputTimestamp()
+      if (ts && ts.contextTime) return ts.contextTime + (performance.now() - ts.performanceTime) / 1000
+    }
+    return ctx.currentTime
+  }
+
+  // --- measurement ----------------------------------------------------------
+  const errRamped = [], errNaive = [], xrunTimeline = []
+  let reports = 0, xruns = 0, lastReport = null
+  let impulsesSeen = 0, prevPeakHigh = false, maxPeak = 0
+
+  node.port.onmessage = (e) => {
+    const r = e.data
+    if (r.started) {
+      // One event message at start pins the anchor exactly. Nothing after this
+      // is needed for position; the formula carries it from here.
+      segments[0].t = r.frame / sr
+      return
+    }
+    reports++; xruns = r.xruns; lastReport = r
+    xrunTimeline.push(r.xruns)
+    // Compare against truth AT THE WORKLET'S OWN TIMESTAMP: isolates formula
+    // accuracy from how well the main thread reads the clock.
+    errRamped.push(derive(r.contextTime, 'ramped') - r.playhead)
+    errNaive.push(derive(r.contextTime, 'naive') - r.playhead)
+  }
+
+  let rateIdx = 0
+  const rateTimer = setInterval(() => {
+    const from = segments[segments.length - 1].to
+    rateIdx = (rateIdx + 1) % RATES.length
+    const to = RATES[rateIdx]
+    const at = ctx.currentTime + 0.05
+    segments.push({ t: Math.round(at * sr) / sr, from, to, rampSec: RATE_RAMP_SEC })
+    node.port.postMessage({ type: 'rate', rate: to, rampSec: RATE_RAMP_SEC, atFrame: Math.round(at * sr) })
+  }, RATE_EVERY_SEC * 1000)
+
+  // --- one rAF loop: read jitter and metering -------------------------------
+  const stepsCT = [], stepsOT = []
+  const lagOT = []
+  let prevCT = null, prevOT = null, frames = 0
+  const startWall = performance.now()
+
+  function frame() {
+    frames++
+    const ct = derive(clockNow('currentTime'), 'ramped')
+    const ot = derive(clockNow('outputTimestamp'), 'ramped')
+    if (prevCT !== null) { stepsCT.push(ct - prevCT); stepsOT.push(ot - prevOT) }
+    prevCT = ct; prevOT = ot
+    lagOT.push(ct - ot) // how far ahead of audible the render clock sits
+
+    analyser.getFloatTimeDomainData(analyserBuf)
+    let peak = 0
+    for (let i = 0; i < analyserBuf.length; i++) {
+      const a = Math.abs(analyserBuf[i]); if (a > peak) peak = a
+    }
+    if (peak > maxPeak) maxPeak = peak
+    // Rising edge only: an impulse lingers in the buffer for ~2.5 frames.
+    const high = peak > 0.9
+    if (high && !prevPeakHigh) impulsesSeen++
+    prevPeakHigh = high
+
+    const elapsed = (performance.now() - startWall) / 1000
+    if (frames % 120 === 0) log(`t=${elapsed.toFixed(0)}s reports=${reports} xruns=${xruns} impulses=${impulsesSeen}`)
+    if (elapsed < DURATION_SEC) requestAnimationFrame(frame)
+    else finish(elapsed)
+  }
+  requestAnimationFrame(frame)
+
+  const mean = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0
+  const std = (a) => { const m = mean(a); return a.length ? Math.sqrt(mean(a.map(v => (v - m) ** 2))) : 0 }
+  const maxAbs = (a) => a.reduce((m, v) => Math.max(m, Math.abs(v)), 0)
+
+  function finish(elapsed) {
+    clearInterval(rateTimer)
+    const out = {
+      durationSec: +elapsed.toFixed(1),
+      sampleRate: sr,
+      baseLatency: +ctx.baseLatency.toFixed(6),
+      outputLatency: +ctx.outputLatency.toFixed(6),
+      crossOriginIsolated: self.crossOriginIsolated === true,
+      sabAvailable: typeof SharedArrayBuffer !== 'undefined',
+      pcmDetached: pcm.byteLength === 0,
+      rafFrames: frames,
+      fps: +(frames / elapsed).toFixed(1),
+      reports, xruns,
+      xrunsAtFirstReport: xrunTimeline[0] ?? null,
+      xrunsAfterFirstReport: xrunTimeline.length ? xrunTimeline.at(-1) - xrunTimeline[0] : null,
+      rateChanges: segments.length - 1,
+      formulaErrorSamples: {
+        ramped: { max: +maxAbs(errRamped).toFixed(3), final: +(errRamped.at(-1) ?? 0).toFixed(3) },
+        naive: { max: +maxAbs(errNaive).toFixed(3), final: +(errNaive.at(-1) ?? 0).toFixed(3) },
+      },
+      formulaErrorMs: {
+        ramped: +(maxAbs(errRamped) / sr * 1000).toFixed(4),
+        naive: +(maxAbs(errNaive) / sr * 1000).toFixed(4),
+      },
+      readJitterSamplesStd: {
+        currentTime: +std(stepsCT).toFixed(2),
+        outputTimestamp: +std(stepsOT).toFixed(2),
+      },
+      renderAheadOfAudibleSamples: +mean(lagOT).toFixed(1),
+      metering: {
+        impulsesEmitted: lastReport ? lastReport.impulsesEmitted : 0,
+        impulsesSeen,
+        maxPeak: +maxPeak.toFixed(4),
+      },
+      finalPlayhead: lastReport ? +lastReport.playhead.toFixed(2) : null,
+    }
+    log(JSON.stringify(out, null, 2))
+    navigator.sendBeacon('/result', JSON.stringify(out))
+  }
+})().catch((err) => {
+  log('ERROR ' + err.message)
+  navigator.sendBeacon('/result', JSON.stringify({ error: err.message, stack: String(err.stack) }))
+})
+</script>
+</body>
